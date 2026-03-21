@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -8,6 +8,8 @@ import { SKILLS_DATABASE } from "@/lib/data";
 import { auth } from "@/lib/firebase";
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from "firebase/auth";
 import { api } from "@/lib/api";
+import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
+import { Volume2, VolumeX } from "lucide-react";
 
 declare global {
     interface Window {
@@ -24,10 +26,23 @@ export default function RegisterPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+    const { speak, toggleVoice, isVoiceEnabled, phrases } = useVoiceAssistant();
     const [form, setForm] = useState({
         name: "", email: "", phone: "", password: "", location: "", education: "",
         selectedSkills: [] as string[], interests: [] as string[], otp: "", role: "professional"
     });
+
+    useEffect(() => {
+        if (form.role === 'worker') {
+            speak(phrases.WELCOME);
+        }
+    }, [form.role]);
+
+    useEffect(() => {
+        if (form.role !== 'worker') return;
+        if (step === 2) speak(phrases.UPDATE_PROFILE);
+        if (step === 4) speak("कृपया आपके फोन पर आया छः अंकों का कोड यहाँ डालें।");
+    }, [step, form.role]);
 
     const allSkills = Object.values(SKILLS_DATABASE).flat();
 
@@ -118,6 +133,7 @@ export default function RegisterPage() {
                 otp: idToken // Send idToken securely
             };
             const res = await api.register(payload);
+            if (form.role === 'worker') speak(phrases.REGISTER_SUCCESS);
             router.push("/login");
         } catch (err: any) {
             setError(err.message || "Registration failed. Please try again.");
@@ -134,7 +150,13 @@ export default function RegisterPage() {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                 className="relative z-10 w-full max-w-lg mx-4"
             >
-                <div className="text-center mb-8">
+                <div className="text-center mb-8 relative">
+                    <button 
+                        onClick={toggleVoice}
+                        className={`absolute -top-2 -right-2 p-2 rounded-full border transition-all ${isVoiceEnabled ? "border-primary-500 text-primary-400 bg-primary-500/10" : "border-white/10 text-dark-500"}`}
+                    >
+                        {isVoiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                    </button>
                     <Link href="/" className="inline-flex items-center gap-2 mb-6">
                         <img src="/logo.png" alt="Logo" className="w-10 h-10 rounded-xl object-contain bg-white/5 p-1" />
                         <span className="text-xl font-bold font-display text-white">CAREER BRIDGE - AI</span>
@@ -173,7 +195,10 @@ export default function RegisterPage() {
                                     <div className="relative">
                                         <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-500" />
                                         <input type="text" placeholder="Your full name" required className="input-field !pl-11"
-                                            value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+                                            value={form.name} 
+                                            onFocus={() => form.role === 'worker' && speak(phrases.ENTER_NAME)}
+                                            onChange={e => setForm({ ...form, name: e.target.value })} 
+                                        />
                                     </div>
                                 </div>
                                 <div>
@@ -189,7 +214,10 @@ export default function RegisterPage() {
                                     <div className="relative">
                                         <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-500" />
                                         <input type="tel" placeholder="+91 9876543210" required className="input-field !pl-11"
-                                            value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+                                            value={form.phone} 
+                                            onFocus={() => form.role === 'worker' && speak(phrases.ENTER_PHONE)}
+                                            onChange={e => setForm({ ...form, phone: e.target.value })} 
+                                        />
                                     </div>
                                 </div>
                                 <div>

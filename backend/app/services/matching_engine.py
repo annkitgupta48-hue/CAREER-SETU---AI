@@ -35,31 +35,42 @@ class MatchingEngine:
             # 3. Calculate match score
             score = 0
             
-            # Skill match (intersection)
-            worker_skills = set(worker.get("skills", []))
-            common_skills = worker_skills.intersection(set(required_skills))
+            # Skill match (intersection + partial matching)
+            worker_skills_list = worker.get("skills", [])
+            worker_skills = set(s.lower() for s in worker_skills_list)
+            req_skills_set = set(s.lower() for s in required_skills)
+            
+            common_skills = worker_skills.intersection(req_skills_set)
             skill_score = (len(common_skills) / len(required_skills)) * 60 if required_skills else 0
             
-            # Location match (simulated - for demo, we'll check if location string is in worker profile or user profile)
-            # In a real app, use geospatial queries
+            # Additional boost for work_type match
+            if request.work_type.lower() in [s.lower() for s in worker_skills_list]:
+                skill_score = max(skill_score, 40)
+            
+            # Location match (simulated - for demo, we'll check if location string matches)
             location_score = 0
             user = await db["users"].find_one({"email": worker["user_id"]})
-            if user and user.get("location") == request.location:
-                location_score = 30
+            if user:
+                # Direct string match or partial match
+                if user.get("location") == request.location:
+                    location_score = 30
+                elif request.location.lower() in user.get("location", "").lower():
+                    location_score = 20
             
             # Rating score
             rating_score = (worker.get("rating", 0.0) / 5.0) * 10
             
             total_score = skill_score + location_score + rating_score
             
-            if total_score > 20: # Minimum threshold
+            if total_score > 15: # Lowered threshold slightly for better discovery
                 matches.append({
                     "worker_id": worker["user_id"],
                     "name": user.get("name") if user else "Unknown",
-                    "skills": list(worker_skills),
+                    "skills": worker_skills_list,
                     "score": round(total_score, 2),
                     "rating": worker.get("rating", 0.0),
-                    "location": user.get("location") if user else "Unknown"
+                    "location": user.get("location") if user else "Unknown",
+                    "charges": worker.get("service_charges", 0.0)
                 })
 
         # Sort by score descending

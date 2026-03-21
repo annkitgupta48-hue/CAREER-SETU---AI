@@ -1,15 +1,23 @@
 import spacy
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 class LocalSkillExtractor:
     def __init__(self):
         model_path = os.path.join(os.path.dirname(__file__), "../models/skill_extractor_model")
         try:
             self.nlp = spacy.load(model_path)
-            print(f"Loaded local skill extraction model from {model_path}")
+            logger.info(f"Loaded local skill extraction model from {model_path}")
         except:
-            print("Warning: Local skill extraction model not found. Using blank model.")
-            self.nlp = spacy.blank("en")
+            logger.warning("Local skill extraction model not found. Attempting to load en_core_web_md...")
+            try:
+                self.nlp = spacy.load("en_core_web_md")
+                logger.info("Loaded en_core_web_md successfully.")
+            except:
+                logger.error("en_core_web_md not found. Using blank model.")
+                self.nlp = spacy.blank("en")
 
     def extract_skills(self, text: str):
         text_lower = text.lower()
@@ -27,7 +35,9 @@ class LocalSkillExtractor:
             "cloud computing", "devops", "cybersecurity", "ui/ux", "figma", "frontend", "backend",
             "fullstack", "django", "flask", "springboot", "angular", "vue", "html", "css",
             "tableau", "powerbi", "excel", "spark", "hadoop", "kafka", "mongodb", "postgresql",
-            "flutter", "react native", "swift", "kotlin", "rust", "go", "c++", "c#", "php"
+            "flutter", "react native", "swift", "kotlin", "rust", "go", "c++", "c#", "php",
+            "electrician", "plumber", "mechanic", "technician", "carpenter", "painter", "welder",
+            "driver", "security guard", "delivery partner", "mason", "ac repair", "housekeeping"
         ]
         
         # Add found industry skills if they aren't already in the list

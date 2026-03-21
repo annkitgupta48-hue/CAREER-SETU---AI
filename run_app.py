@@ -6,20 +6,23 @@ import time
 
 def run_backend():
     print("🚀 Starting Backend (FastAPI)...")
-    # Use the current python interpreter
-    # Assuming backend is in 'backend' directory
     env = os.environ.copy()
     cwd = os.path.join(os.getcwd(), "backend")
     
-    # Run uvicorn
-    try:
-        subprocess.run([sys.executable, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"], cwd=cwd, env=env)
-    except KeyboardInterrupt:
-        pass
+    # Use .venv python if available
+    venv_python = os.path.join(os.getcwd(), ".venv", "Scripts", "python.exe")
+    python_exe = venv_python if os.path.exists(venv_python) else sys.executable
+    
+    # Run uvicorn and log to backend.log
+    with open("backend.log", "w") as f:
+        try:
+            subprocess.run([python_exe, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"], 
+                           cwd=cwd, env=env, stdout=f, stderr=f)
+        except KeyboardInterrupt:
+            pass
 
 def run_frontend():
     print("🌐 Starting Frontend (Next.js)...")
-    # Assuming frontend is in 'frontend' directory
     cwd = os.path.join(os.getcwd(), "frontend")
     
     # Check if node_modules exists
@@ -27,15 +30,20 @@ def run_frontend():
         print("📦 Installing frontend dependencies...")
         subprocess.run(["npm", "install"], cwd=cwd, shell=True)
     
-    # Run npm run dev
-    try:
-        subprocess.run(["npm", "run", "dev"], cwd=cwd, shell=True)
-    except KeyboardInterrupt:
-        pass
+    # Run npm run dev and log to frontend.log
+    with open("frontend.log", "w") as f:
+        try:
+            subprocess.run(["npm", "run", "dev"], cwd=cwd, shell=True, stdout=f, stderr=f)
+        except KeyboardInterrupt:
+            pass
 
 if __name__ == "__main__":
     print("🌟 CAREER BRIDGE - AI - Starting Services 🌟")
     
+    # Ensure logs aren't deleted by mistake later
+    open("backend.log", "a").close()
+    open("frontend.log", "a").close()
+
     backend_thread = threading.Thread(target=run_backend)
     frontend_thread = threading.Thread(target=run_frontend)
     

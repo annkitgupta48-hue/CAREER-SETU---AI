@@ -9,6 +9,13 @@ export default function CustomerDashboard({ user }: { user: any }) {
     const [stats, setStats] = useState<any>(null);
     const [search, setSearch] = useState("");
     const [loading, setLoading] = useState(false);
+    const [showRequestModal, setShowRequestModal] = useState(false);
+    const [newRequest, setNewRequest] = useState({
+        work_type: "",
+        description: "",
+        budget: 0,
+        location: user.location || ""
+    });
 
     useEffect(() => {
         async function loadData() {
@@ -33,6 +40,19 @@ export default function CustomerDashboard({ user }: { user: any }) {
         finally { setLoading(false); }
     };
 
+    const handleCreateRequest = async () => {
+        try {
+            const res = await api.createServiceRequest(newRequest);
+            alert("Request created! Best matches: " + res.suggested_workers.map((w:any) => w.name).join(", "));
+            setShowRequestModal(false);
+            // Refresh requests
+            const reqs = await api.getCustomerRequests();
+            setRequests(reqs);
+        } catch (err) {
+            alert("Failed to create request: " + err);
+        }
+    };
+
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -40,13 +60,76 @@ export default function CustomerDashboard({ user }: { user: any }) {
                     <h1 className="text-3xl font-bold text-white tracking-tight italic">Customer Portal</h1>
                     <p className="text-dark-400 mt-2 font-medium">Find skilled professionals for all your home and business needs.</p>
                 </div>
-                <button className="btn-primary flex items-center gap-2 shadow-lg shadow-primary-500/20">
+                <button 
+                    onClick={() => setShowRequestModal(true)}
+                    className="btn-primary flex items-center gap-2 shadow-lg shadow-primary-500/20"
+                >
                     <Plus className="w-5 h-5" /> New Request
                 </button>
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
+                    {/* New Request Modal Section */}
+                    {showRequestModal && (
+                        <section className="glass-card p-8 border-primary-500/30 bg-primary-500/5 relative animate-in zoom-in-95 duration-300">
+                            <button 
+                                onClick={() => setShowRequestModal(false)}
+                                className="absolute top-4 right-4 text-dark-400 hover:text-white"
+                            >✕</button>
+                            <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                                <Plus className="w-6 h-6 text-primary-400" /> Create Service Request
+                            </h3>
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-sm text-dark-300 mb-2 block">Service Type</label>
+                                        <input 
+                                            type="text" 
+                                            placeholder="e.g. Electrician, AC Repair"
+                                            value={newRequest.work_type}
+                                            onChange={(e) => setNewRequest({...newRequest, work_type: e.target.value})}
+                                            className="input-field"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-sm text-dark-300 mb-2 block">Budget (₹)</label>
+                                        <input 
+                                            type="number" 
+                                            placeholder="500"
+                                            value={newRequest.budget}
+                                            onChange={(e) => setNewRequest({...newRequest, budget: parseFloat(e.target.value)})}
+                                            className="input-field"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-sm text-dark-300 mb-2 block">Problem Description (AI will use this to match)</label>
+                                    <textarea 
+                                        rows={3}
+                                        placeholder="Describe the issue in detail..."
+                                        value={newRequest.description}
+                                        onChange={(e) => setNewRequest({...newRequest, description: e.target.value})}
+                                        className="input-field resize-none py-3"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-sm text-dark-300 mb-2 block">Location</label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Area, City"
+                                        value={newRequest.location}
+                                        onChange={(e) => setNewRequest({...newRequest, location: e.target.value})}
+                                        className="input-field"
+                                    />
+                                </div>
+                                <button onClick={handleCreateRequest} className="btn-primary w-full py-4 font-bold uppercase tracking-widest">
+                                    Post Request & Match Workers
+                                </button>
+                            </div>
+                        </section>
+                    )}
+
                     {/* Search Section */}
                     <section className="glass-card p-6 bg-primary-500/5 border-primary-500/10">
                         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
@@ -73,27 +156,28 @@ export default function CustomerDashboard({ user }: { user: any }) {
                             <h2 className="text-xl font-bold text-white mb-6 uppercase tracking-wider underline underline-offset-8 decoration-primary-500/30">Top Matches for You</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {workers.map((w, i) => (
-                                    <div key={i} className="glass-card p-4 hover:bg-white/5 transition-all group">
+                                    <div key={i} className="glass-card p-4 hover:bg-white/5 transition-all group border-l-2 border-accent-emerald">
                                         <div className="flex items-center gap-4 mb-3">
-                                            <div className="w-12 h-12 rounded-full bg-slate-800 border-2 border-primary-500 flex items-center justify-center font-bold text-primary-400">
-                                                {w.name[0]}
+                                            <div className="w-12 h-12 rounded-full bg-slate-800 border-2 border-primary-500 flex items-center justify-center font-bold text-primary-400 overflow-hidden">
+                                                {w.name?.[0]}
                                             </div>
                                             <div>
                                                 <h4 className="text-white font-bold group-hover:text-primary-400 transition-colors">{w.name}</h4>
                                                 <div className="flex items-center gap-1 text-accent-amber">
                                                     <Star className="w-3 h-3 fill-current" />
-                                                    <span className="text-xs font-bold">{w.rating}</span>
+                                                    <span className="text-xs font-bold">{w.rating || "N/A"}</span>
+                                                    {w.score && <span className="text-[10px] text-dark-500 ml-2">Match: {Math.round(w.score)}%</span>}
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="space-y-2">
                                             <div className="flex flex-wrap gap-2">
-                                                {w.skills.map((s: string) => (
+                                                {(w.skills || []).slice(0, 3).map((s: string) => (
                                                     <span key={s} className="px-2 py-0.5 rounded-full bg-slate-800 text-[10px] text-dark-300 font-bold uppercase tracking-tighter">{s}</span>
                                                 ))}
                                             </div>
                                             <div className="flex items-center justify-between text-xs pt-2 border-t border-white/5">
-                                                <span className="text-dark-400 font-medium">Starting from <span className="text-accent-emerald font-bold">₹{w.charges}</span></span>
+                                                <span className="text-dark-400 font-medium">Starting from <span className="text-accent-emerald font-bold">₹{w.charges || 0}</span></span>
                                                 <button className="text-primary-400 hover:text-primary-300 font-bold flex items-center gap-1 group/btn">
                                                     Hire <ChevronRight className="w-3 h-3 group-hover/btn:translate-x-1 transition-all" />
                                                 </button>
@@ -115,10 +199,10 @@ export default function CustomerDashboard({ user }: { user: any }) {
                                 <div className="glass-card p-12 text-center text-dark-400 font-medium italic opacity-60">You haven't posted any service requests yet.</div>
                             ) : (
                                 requests.map((req, i) => (
-                                    <div key={i} className="glass-card p-4 flex items-center justify-between border-l-4 border-primary-500">
+                                    <div key={i} className="glass-card p-4 flex items-center justify-between border-l-4 border-primary-500 bg-primary-500/5">
                                         <div>
                                             <h4 className="text-white font-bold tracking-tight">{req.work_type}</h4>
-                                            <p className="text-xs text-dark-500 mt-1 uppercase font-mono">{req.location} • {req.status}</p>
+                                            <p className="text-xs text-dark-500 mt-1 uppercase font-mono">{req.location} • <span className="text-primary-400">{req.status}</span></p>
                                         </div>
                                         <div className="flex items-center gap-3">
                                             <button className="p-2 text-dark-400 hover:text-white transition-colors"><MessageSquare className="w-5 h-5" /></button>
@@ -134,7 +218,7 @@ export default function CustomerDashboard({ user }: { user: any }) {
                 <div className="space-y-8">
                      <section className="glass-card p-6 border-b-4 border-primary-500">
                         <div className="text-center">
-                            <div className="w-16 h-16 rounded-full bg-slate-800 border-2 border-white/10 mx-auto flex items-center justify-center text-2xl font-bold text-white mb-4 shadow-xl">
+                            <div className="w-16 h-16 rounded-full bg-slate-800 border-2 border-white/10 mx-auto flex items-center justify-center text-2xl font-bold text-white mb-4 shadow-xl overflow-hidden">
                                 {user.name?.[0]}
                             </div>
                             <h3 className="text-xl font-bold text-white tracking-wide">{user.name}</h3>
@@ -153,7 +237,7 @@ export default function CustomerDashboard({ user }: { user: any }) {
                                 <span className="text-dark-400 font-medium tracking-tight">Wallet Balance</span>
                                 <span className="text-accent-cyan font-bold uppercase text-xs tracking-wider">₹{stats?.balance || 0}</span>
                             </div>
-                            <button className="btn-secondary w-full text-xs py-2 uppercase tracking-widest font-bold">Manage Wallet</button>
+                            <button className="btn-secondary w-full text-xs py-2 uppercase tracking-widest font-bold mt-4">Add Funds</button>
                         </div>
                     </section>
                 </div>

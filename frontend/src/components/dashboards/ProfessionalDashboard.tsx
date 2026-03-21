@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, Target, BookOpen, Briefcase, FileText, MessageSquare, ChevronRight, Sparkles, Zap, ArrowUpRight, Award } from "lucide-react";
+import { TrendingUp, Target, BookOpen, Briefcase, FileText, MessageSquare, ChevronRight, Sparkles, Zap, ArrowUpRight, Award, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 
@@ -74,6 +74,23 @@ export default function ProfessionalDashboard({ user }: { user: any }) {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
+                    {/* NEW: Marketplace Integration Card */}
+                    <section className="glass-card p-6 border-l-4 border-primary-500 bg-primary-500/5 overflow-hidden relative group">
+                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <ShoppingBag className="w-32 h-32 text-primary-400 rotate-12" />
+                        </div>
+                        <div className="relative z-10">
+                            <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                                <Sparkles className="w-5 h-5 text-accent-cyan" /> Explore Service Marketplace
+                            </h3>
+                            <p className="text-dark-300 text-sm mb-6 max-w-md font-medium">Need a hand with home repairs or technical services? Access our verified network of skilled workers directly.</p>
+                            <div className="flex gap-4">
+                                <button className="btn-primary px-6">Browse Services</button>
+                                <button className="text-dark-400 hover:text-white text-sm font-bold transition-colors">How it works →</button>
+                            </div>
+                        </div>
+                    </section>
+
                     <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="glass-card p-6 flex flex-col items-center justify-center text-center">
                             <CircularProgress value={stats.careerScore} />

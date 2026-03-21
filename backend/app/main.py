@@ -25,7 +25,7 @@ try:
     from .analytics_engine import AnalyticsEngine
     from .job_matcher import JobMatcher
     from .services.job_service import JobFetcherService
-    from .models import UserProfile, JobRole, ResumeAnalysis, SkillGapReport, JobListing, UserRegistration, UserLogin, SendOTPRequest
+    from .models import UserProfile, JobRole, ResumeAnalysis, SkillGapReport, JobListing, UserRegistration, UserLogin, SendOTPRequest, UserRole
     from .database import get_db
     from .auth import get_password_hash, verify_password, create_access_token, get_current_user_email, RoleChecker
     from .services.firebase_service import verify_firebase_token
@@ -41,7 +41,7 @@ except (ImportError, ValueError):
     from app.analytics_engine import AnalyticsEngine
     from app.job_matcher import JobMatcher
     from app.services.job_service import JobFetcherService
-    from app.models import UserProfile, JobRole, ResumeAnalysis, SkillGapReport, JobListing, UserRegistration, UserLogin, SendOTPRequest
+    from app.models import UserProfile, JobRole, ResumeAnalysis, SkillGapReport, JobListing, UserRegistration, UserLogin, SendOTPRequest, UserRole
     from app.database import get_db
     from app.auth import get_password_hash, verify_password, create_access_token, get_current_user_email, RoleChecker
     from app.services.firebase_service import verify_firebase_token
@@ -79,6 +79,25 @@ app.include_router(identity.router)
 # When ALLOWED_ORIGINS env var lists specific URLs (e.g. your frontend), credentials work.
 # In development (wildcard), credentials are disabled to comply with the CORS spec.
 _use_credentials = ALLOWED_ORIGINS != ["*"]
+@app.on_event("startup")
+async def startup_db_client():
+    # Create indexes for performance and uniqueness
+    db = get_db()
+    try:
+        await db["users"].create_index("email", unique=True)
+        await db["users"].create_index("phone", unique=True)
+        # Geospatial index for location-based matching
+        await db["users"].create_index([("location", "2dsphere")])
+        
+        await db["worker_profiles"].create_index("user_id", unique=True)
+        await db["service_requests"].create_index("customer_id")
+        await db["service_requests"].create_index("worker_id")
+        await db["users"].create_index([("latitude", "2dsphere"), ("longitude", "2dsphere")], sparse=True)
+        
+        logger.info("MongoDB indexes verified/created.")
+    except Exception as e:
+        logger.warning(f"Failed to create/verify MongoDB indexes: {e}. Check disk space and permissions.")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -137,7 +156,9 @@ async def health_check():
 
 # Auth & Profile
 @app.post("/api/auth/register")
+@app.post("/auth/register")
 async def register(profile: UserRegistration):
+    # ... (existing code)
     db = get_db()
     
     # 1. Verify OTP - Allow universal test code '123567'
@@ -160,11 +181,26 @@ async def register(profile: UserRegistration):
     
     result = await db["users"].insert_one(user_dict)
     
+    # NEW: Create default WorkerProfile if role is worker
+    if profile.role == UserRole.WORKER:
+        worker_profile = {
+            "user_id": profile.email,
+            "skills": profile.skills,
+            "experience_years": 0,
+            "service_charges": 0.0,
+            "rating": 0.0,
+            "total_reviews": 0,
+            "total_earnings": 0.0,
+            "availability": True
+        }
+        await db["worker_profiles"].insert_one(worker_profile)
+    
     user_dict.pop("password", None)
     user_dict["_id"] = str(result.inserted_id)
     return {"message": "User registered successfully", "user": user_dict}
 
 @app.post("/api/auth/login")
+@app.post("/auth/login")
 async def login(credentials: UserLogin):
     db = get_db()
     user = await db["users"].find_one({"email": credentials.email})

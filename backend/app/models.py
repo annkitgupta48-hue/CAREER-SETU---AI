@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr, SecretStr
 from typing import List, Optional
 from enum import Enum
 from datetime import datetime
@@ -11,7 +11,7 @@ class UserRole(str, Enum):
 
 class UserProfile(BaseModel):
     name: str
-    email: str
+    email: EmailStr
     phone: str
     location: str
     education: Optional[str] = None
@@ -28,14 +28,14 @@ class UserProfile(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class UserRegistration(UserProfile):
-    password: str
+    password: SecretStr
     otp: str
 
 class SendOTPRequest(BaseModel):
     phone: str
 
 class UserLogin(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
 class JobRole(BaseModel):
@@ -82,8 +82,8 @@ class JobListing(BaseModel):
 class WorkerProfile(BaseModel):
     user_id: str
     aadhaar_number: Optional[str] = None
-    skills: List[str]
-    experience_years: int
+    skills: List[str] = []
+    experience_years: int = 0
     work_photos: List[str] = []
     work_videos: List[str] = []
     service_charges: float = 0.0

@@ -1,34 +1,52 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ShieldCheck, Briefcase, MapPin, Star, Clock, CheckCircle2, AlertCircle, ChevronRight, User } from "lucide-react";
+import { ShieldCheck, Briefcase, MapPin, Star, Clock, CheckCircle2, AlertCircle, ChevronRight, User, Volume2, VolumeX } from "lucide-react";
 import { api } from "@/lib/api";
+import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
 
 export default function WorkerDashboard({ user }: { user: any }) {
+    const { speak, toggleVoice, isVoiceEnabled, phrases } = useVoiceAssistant();
     const [requests, setRequests] = useState<any[]>([]);
     const [workerStats, setWorkerStats] = useState<any>(null);
     const [aadhaar, setAadhaar] = useState("");
     const [verifying, setVerifying] = useState(false);
+    const [showProfileEditor, setShowProfileEditor] = useState(false);
+    const [profileForm, setProfileForm] = useState({
+        skills: [] as string[],
+        experience_years: 0,
+        service_charges: 0
+    });
 
     useEffect(() => {
         async function loadData() {
             try {
-                const [reqs, stats] = await Promise.all([
+                const [reqs, profile] = await Promise.all([
                     api.getWorkerRequests(),
                     api.getWorkerProfile()
                 ]);
                 setRequests(reqs);
-                setWorkerStats(stats);
+                setWorkerStats(profile);
+                if (profile) {
+                    setProfileForm({
+                        skills: profile.skills || [],
+                        experience_years: profile.experience_years || 0,
+                        service_charges: profile.service_charges || 0
+                    });
+                }
             } catch (err) { console.error(err); }
         }
         loadData();
     }, []);
 
     const handleAadhaarVerify = async () => {
+        if (aadhaar.length !== 12) return;
         setVerifying(true);
+        speak(phrases.VERIFY_AADHAAR_PROMPT); 
         try {
             await api.verifyAadhaar(aadhaar);
-            window.location.reload(); // Refresh to update status
+            speak(phrases.VERIFY_SUCCESS);
+            setTimeout(() => window.location.reload(), 2000); 
         } catch (err) {
             alert("Verification failed: " + err);
         } finally {
@@ -36,17 +54,92 @@ export default function WorkerDashboard({ user }: { user: any }) {
         }
     };
 
+    const handleUpdateProfile = async () => {
+        try {
+            await api.updateWorkerProfile(profileForm);
+            setShowProfileEditor(false);
+            const updatedProfile = await api.getWorkerProfile();
+            setWorkerStats(updatedProfile);
+        } catch (err) {
+            alert("Failed to update profile: " + err);
+        }
+    };
+
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <header className="mb-8">
-                <h1 className="text-3xl font-bold text-white uppercase italic tracking-wider">Worker Hub</h1>
-                <p className="text-dark-400 mt-2 tracking-tight font-medium">Manage your services, verification, and job requests in one place.</p>
+            <header className="mb-8 flex justify-between items-center">
+                <div>
+                    <h1 className="text-3xl font-bold text-white uppercase italic tracking-wider">Worker Hub</h1>
+                    <p className="text-dark-400 mt-2 tracking-tight font-medium">Manage your services, verification, and job requests in one place.</p>
+                </div>
+                <div className="flex gap-4 items-center">
+                    <button 
+                        onClick={toggleVoice}
+                        className={`p-2 rounded-full border transition-all ${isVoiceEnabled ? "border-primary-500 text-primary-400 bg-primary-500/10" : "border-white/10 text-dark-500"}`}
+                        title={isVoiceEnabled ? "Disable Voice Voice Guidance" : "Enable Voice Guidance"}
+                    >
+                        {isVoiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+                    </button>
+                    <button 
+                        onClick={() => {
+                            setShowProfileEditor(true);
+                            speak(phrases.UPDATE_PROFILE);
+                        }}
+                        className="btn-secondary flex items-center gap-2"
+                    >
+                        <User className="w-4 h-4" /> Edit Profile
+                    </button>
+                </div>
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
+                    {/* Verification & Profile Editor Modal-like section */}
+                    {showProfileEditor && (
+                        <section className="glass-card p-8 border-primary-500/30 bg-primary-500/5 relative">
+                            <button 
+                                onClick={() => setShowProfileEditor(false)}
+                                className="absolute top-4 right-4 text-dark-400 hover:text-white"
+                            >✕</button>
+                            <h3 className="text-2xl font-bold text-white mb-6">Complete Your Profile</h3>
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="text-sm text-dark-300 mb-2 block">Skills (Comma separated)</label>
+                                    <input 
+                                        type="text" 
+                                        value={profileForm.skills.join(", ")}
+                                        onChange={(e) => setProfileForm({...profileForm, skills: e.target.value.split(",").map(s => s.trim())})}
+                                        className="input-field"
+                                        placeholder="e.g. Electrician, Plumbing"
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-sm text-dark-300 mb-2 block">Years of Experience</label>
+                                        <input 
+                                            type="number" 
+                                            value={profileForm.experience_years}
+                                            onChange={(e) => setProfileForm({...profileForm, experience_years: parseInt(e.target.value)})}
+                                            className="input-field"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-sm text-dark-300 mb-2 block">Service Charges (₹/hr)</label>
+                                        <input 
+                                            type="number" 
+                                            value={profileForm.service_charges}
+                                            onChange={(e) => setProfileForm({...profileForm, service_charges: parseFloat(e.target.value)})}
+                                            className="input-field"
+                                        />
+                                    </div>
+                                </div>
+                                <button onClick={handleUpdateProfile} className="btn-primary w-full py-4">Save Profile Changes</button>
+                            </div>
+                        </section>
+                    )}
+
                     {/* Aadhaar Verification Section */}
-                    {!user.is_verified && (
+                    {!user.is_verified && !showProfileEditor && (
                         <section className="glass-card p-6 border-l-4 border-accent-amber bg-accent-amber/5">
                             <div className="flex items-start gap-4">
                                 <AlertCircle className="w-6 h-6 text-accent-amber flex-shrink-0" />
@@ -67,6 +160,12 @@ export default function WorkerDashboard({ user }: { user: any }) {
                                             className="btn-primary"
                                         >
                                             {verifying ? "Verifying..." : "Verify Now"}
+                                        </button>
+                                    </div>
+                                    <div className="mt-4 pt-4 border-t border-white/5">
+                                        <p className="text-xs text-dark-500 mb-3">OR VERIFY VIA DIGILOCKER</p>
+                                        <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600/10 border border-blue-600/30 text-blue-400 text-xs font-bold hover:bg-blue-600/20 transition-all">
+                                            <ShieldCheck className="w-4 h-4" /> Fetch from DigiLocker
                                         </button>
                                     </div>
                                 </div>
@@ -114,8 +213,11 @@ export default function WorkerDashboard({ user }: { user: any }) {
                                                     <div className="text-lg font-bold text-accent-emerald">₹{req.budget}</div>
                                                     <div className="text-xs text-dark-400 font-medium uppercase opacity-60">Estimated Budget</div>
                                                 </div>
-                                                <button className="btn-secondary group-hover:bg-primary-600 group-hover:text-white transition-all">
-                                                    View Details
+                                                <button 
+                                                    onClick={() => speak(phrases.ACCEPT_JOB)}
+                                                    className="btn-secondary group-hover:bg-accent-emerald group-hover:text-white transition-all"
+                                                >
+                                                    Accept Job
                                                 </button>
                                             </div>
                                         </div>
@@ -129,36 +231,51 @@ export default function WorkerDashboard({ user }: { user: any }) {
                 <div className="space-y-8">
                     <section className="glass-card p-6">
                          <div className="flex items-center gap-4 mb-6">
-                            <div className="w-16 h-16 rounded-full bg-slate-800 border-2 border-primary-500/50 flex items-center justify-center text-2xl font-bold text-primary-400">
+                            <div className="w-16 h-16 rounded-full bg-slate-800 border-2 border-primary-500/50 flex items-center justify-center text-2xl font-bold text-primary-400 overflow-hidden">
                                 {user.name?.[0]}
                             </div>
                             <div>
                                 <h3 className="text-xl font-bold text-white tracking-wide">{user.name}</h3>
                                 <div className="flex items-center gap-1 text-accent-amber mt-1">
                                     <Star className="w-4 h-4 fill-current" />
-                                    <span className="text-sm font-bold">4.8</span>
-                                    <span className="text-xs text-dark-400 font-medium ml-1 underline decoration-dark-400/30">(24 Reviews)</span>
+                                    <span className="text-sm font-bold">{workerStats?.rating || 0}</span>
+                                    <span className="text-xs text-dark-400 font-medium ml-1">({workerStats?.total_reviews || 0} Reviews)</span>
                                 </div>
                             </div>
                          </div>
                          <div className="space-y-4 pt-4 border-t border-white/5">
                             <div className="flex justify-between text-sm">
                                 <span className="text-dark-400 font-medium tracking-tight">Status</span>
-                                <span className="text-accent-emerald font-bold uppercase tracking-wider text-xs">Available</span>
+                                <span className={workerStats?.availability ? "text-accent-emerald font-bold uppercase tracking-wider text-xs" : "text-red-400 font-bold uppercase tracking-wider text-xs"}>
+                                    {workerStats?.availability ? "Available" : "Busy"}
+                                </span>
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-dark-400 font-medium tracking-tight">Experience</span>
                                 <span className="text-white font-bold opacity-80 uppercase text-xs tracking-wider">{workerStats?.experience_years || 0} Years</span>
                             </div>
                             <div className="flex justify-between text-sm">
-                                <span className="text-dark-400 font-medium tracking-tight">Jobs Completed</span>
-                                <span className="text-white font-bold opacity-80 uppercase text-xs tracking-wider">{workerStats?.completed_jobs_count || 0}</span>
+                                <span className="text-dark-400 font-medium tracking-tight">Rate</span>
+                                <span className="text-white font-bold opacity-80 uppercase text-xs tracking-wider">₹{workerStats?.service_charges || 0}/hr</span>
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-dark-400 font-medium tracking-tight">Total Earnings</span>
                                 <span className="text-accent-emerald font-bold uppercase text-xs tracking-wider">₹{workerStats?.total_earnings || 0}</span>
                             </div>
                          </div>
+                    </section>
+                    
+                    {/* Media Display Section (Photos/Videos) */}
+                    <section className="glass-card p-6">
+                        <h3 className="text-lg font-bold text-white mb-4">Work Portfolio</h3>
+                        <div className="grid grid-cols-2 gap-2">
+                             {[1,2,3,4].map(i => (
+                                <div key={i} className="aspect-square rounded-lg bg-slate-800 animate-pulse border border-white/5 flex items-center justify-center">
+                                    <ShieldCheck className="w-6 h-6 text-white/10" />
+                                </div>
+                             ))}
+                        </div>
+                        <button className="w-full mt-4 py-2 border border-white/10 rounded-lg text-xs font-bold text-dark-400 hover:text-white transition-all">Upload Media</button>
                     </section>
                 </div>
             </div>
