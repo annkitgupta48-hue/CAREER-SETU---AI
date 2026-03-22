@@ -21,9 +21,9 @@ services:
       - key: ALLOWED_ORIGINS
         sync: false   # Optional: set to frontend URL
       - key: ADZUNA_APP_ID
-        value: 59e4ea87
+        sync: false   # Value: 59e4ea87
       - key: ADZUNA_APP_KEY
-        value: 6905e87415d0ab06ddd1e64f25332124
+        sync: false   # Value: 6905e87415d0ab06ddd1e64f25332124
 
   - type: web
     name: career-setu-frontend
