@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Body
+from fastapi.param_functions import Body as BodyField
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import uvicorn
@@ -278,7 +279,7 @@ async def get_profile(email: str = Depends(get_current_user_email)):
 
 @app.post("/api/profile/update")
 async def update_profile(
-    data: dict = Body(...),
+    data: dict = BodyField(...),
     email: str = Depends(get_current_user_email)
 ):
     db = get_db()
@@ -425,4 +426,4 @@ async def get_district_analytics(state: Optional[str] = None):
 
 if __name__ == "__main__":
     # Production configuration: Run with host 0.0.0.0 for public access, reload=False for performance
-    uvicorn.run("app.main:app", host="0.0.0.0", port=PORT, reload=False, workers=4)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=PORT, reload=False, workers=1)
