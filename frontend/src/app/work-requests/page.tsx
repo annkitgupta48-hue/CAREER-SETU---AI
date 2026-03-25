@@ -6,11 +6,9 @@ import { api } from "@/lib/api";
 import { useNotify } from "@/components/NotificationProvider";
 import { FadeIn, Spinner, StatusBadge } from "@/components/ui";
 import { Briefcase, MapPin, Search, Filter, CheckCircle, XCircle, Clock, Trash2 } from "lucide-react";
-import { useSocket } from "@/components/SocketProvider";
 
 export default function WorkRequestsPage() {
     const notify = useNotify();
-    const { socket } = useSocket();
     const [requests, setRequests] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState("all");
